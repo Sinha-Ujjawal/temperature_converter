@@ -1,7 +1,7 @@
 use crate::temperature::TemperatureUnit;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
-use yew::{html, Component, Context, Html, KeyboardEvent};
+use yew::{html, Callback, Component, Context, Event, Html, KeyboardEvent};
 
 mod temperature;
 
@@ -20,6 +20,15 @@ pub fn draw_number_textbox<C: Component<Message = Msg>, Msg: 'static>(
     default: f64,
     mk_event: fn(f64) -> Msg,
 ) -> Html {
+    let link = ctx.link();
+    let trigger_event = move |e: Event| {
+        let target = e.target();
+        let input = target.and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+        input.map(move |input| mk_event(input.value().parse().unwrap_or(default)))
+    };
+    let onkeyup: Callback<KeyboardEvent> =
+        link.batch_callback(move |e: KeyboardEvent| trigger_event(e.into()));
+    let onchange: Callback<Event> = link.batch_callback(trigger_event);
     html! {
         <div>
             <div>{label}</div>
@@ -27,11 +36,8 @@ pub fn draw_number_textbox<C: Component<Message = Msg>, Msg: 'static>(
                 type="number"
                 placeholder={placeholder}
                 value={value.to_string()}
-                onkeyup={ctx.link().batch_callback(move |e: KeyboardEvent| {
-                    let target = e.target();
-                    let input = target.and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
-                    input.map(move |input| mk_event(input.value().parse().unwrap_or(default)))
-                })}
+                onkeyup={onkeyup}
+                onchange={onchange}
             />
         </div>
     }
